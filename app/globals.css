@@ -1,0 +1,26 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@theme {
+  --color-lpu-orange: #F37F20;
+  --color-lpu-orange-hover: #D96A13;
+  --color-lpu-bg: #FCF6F5;
+  --color-lpu-surface: #FFFFFF;
+  --color-lpu-input-bg: #F6F0ED;
+  --color-lpu-text-primary: #171717;
+  --color-lpu-text-secondary: #525252;
+  --color-lpu-text-muted: #737373;
+  --color-lpu-border: #E5E5E5;
+
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+}
+
+@layer base {
+  body {
+    @apply bg-lpu-bg text-lpu-text-primary antialiased;
+  }
+}
