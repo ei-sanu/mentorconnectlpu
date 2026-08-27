@@ -1,178 +1,466 @@
 import { MentorPublicProfile, MentorMatch, MentorshipRequest, Mentorship, Session, Goal } from '@/types';
 
-// Mock Data
-export const MOCK_MENTORS: MentorPublicProfile[] = [
-  {
-    id: 'm1',
-    userId: 'mentor_1',
-    firstName: 'Priya',
-    lastName: 'Patel',
-    title: 'Senior Software Engineer',
-    company: 'Google',
-    experienceYears: 6,
-    expertise: ['Backend Engineering', 'System Design', 'Node.js', 'Distributed Systems'],
-    industry: 'Technology',
-    graduationYear: '2019',
-    programme: 'B.Tech CSE',
-    imageUrl: 'https://picsum.photos/seed/priya/200/200',
-    capacity: { max: 3, current: 1 },
-    acceptingMentees: true,
-  },
-  {
-    id: 'm2',
-    userId: 'mentor_2',
-    firstName: 'Vikram',
-    lastName: 'Singh',
-    title: 'Product Manager',
-    company: 'Microsoft',
-    experienceYears: 8,
-    expertise: ['Product Strategy', 'Agile', 'UI/UX', 'Career Transition'],
-    industry: 'Technology',
-    graduationYear: '2017',
-    programme: 'MBA',
-    imageUrl: 'https://picsum.photos/seed/vikram/200/200',
-    capacity: { max: 2, current: 2 },
-    acceptingMentees: false,
-  },
-  {
-    id: 'm3',
-    userId: 'mentor_3',
-    firstName: 'Neha',
-    lastName: 'Gupta',
-    title: 'Data Scientist',
-    company: 'Amazon',
-    experienceYears: 4,
-    expertise: ['Machine Learning', 'Python', 'Data Analytics', 'Interview Prep'],
-    industry: 'E-commerce',
-    graduationYear: '2021',
-    programme: 'B.Tech CSE',
-    imageUrl: 'https://picsum.photos/seed/neha/200/200',
-    capacity: { max: 4, current: 1 },
-    acceptingMentees: true,
-  },
-];
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
 
-// Service Layer Abstractions
+/**
+ * Wait up to `maxMs` for window.Clerk.session to be ready, then return a JWT.
+ * Clerk sets window.Clerk synchronously when its script loads, but session
+ * is populated asynchronously after the OAuth redirect completes.
+ */
+async function getClerkToken(maxMs = 3000): Promise<string | null> {
+  if (typeof window === 'undefined') return null;
+
+  // Intercept and return mock token with active role if logged in via mock account
+  const mockEmail = localStorage.getItem('mock_user_email');
+  if (mockEmail) {
+    const activeRole = localStorage.getItem('active_role') || 'ADMIN';
+    return `mock_token_${mockEmail}_role${activeRole}`;
+  }
+
+  const poll = async (elapsed = 0): Promise<string | null> => {
+    const clerk = (window as any).Clerk;
+    if (clerk?.session) {
+      try {
+        const token = await clerk.session.getToken();
+        if (token) return token;
+      } catch {
+        // session exists but token not ready yet — fall through to retry
+      }
+    }
+    if (elapsed >= maxMs) return null;
+    await new Promise(r => setTimeout(r, 150));
+    return poll(elapsed + 150);
+  };
+
+  return poll();
+}
+
+// API Fetch helper
+async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as any),
+  };
+
+  // Always try to attach the Clerk JWT — wait briefly for session on first load
+  const token = await getClerkToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers,
+  });
+
+  const json = await response.json();
+
+  if (!response.ok) {
+    throw new Error(json?.error?.message || json?.message || `HTTP error! status: ${response.status}`);
+  }
+
+  // Handle standard response wrapper { success: true, data: T }
+  return (json.data ?? json) as T;
+}
+
+
+// ─────────────────────────────────────────────────
+// MENTOR SERVICE
+// ─────────────────────────────────────────────────
 export const mentorService = {
   getRecommendedMentors: async (): Promise<MentorMatch[]> => {
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-    return MOCK_MENTORS.filter(m => m.acceptingMentees).map(m => ({
-      ...m,
-      matchScore: m.id === 'm1' ? 94 : 85,
-      matchReasons: m.id === 'm1' 
-        ? ['Strong backend engineering experience', 'Node.js expertise', 'System design experience', 'Matches your target role', 'Currently accepting mentees']
-        : ['Python expertise', 'Data analytics experience', 'Recent graduate perspective'],
-    }));
+    return apiFetch<MentorMatch[]>('/recommendations/mentors');
   },
-  
+
   searchMentors: async (query: string): Promise<MentorPublicProfile[]> => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    if (!query) return MOCK_MENTORS;
-    const lowerQuery = query.toLowerCase();
-    return MOCK_MENTORS.filter(m => 
-      m.firstName.toLowerCase().includes(lowerQuery) || 
-      m.lastName.toLowerCase().includes(lowerQuery) ||
-      m.company.toLowerCase().includes(lowerQuery) ||
-      m.expertise.some(e => e.toLowerCase().includes(lowerQuery))
-    );
+    return apiFetch<MentorPublicProfile[]>(`/mentors?search=${encodeURIComponent(query)}`);
   },
 
   getMentorById: async (id: string): Promise<MentorPublicProfile | null> => {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    return MOCK_MENTORS.find(m => m.id === id) || null;
-  }
+    try {
+      return await apiFetch<MentorPublicProfile>(`/mentors/${id}`);
+    } catch {
+      return null;
+    }
+  },
+
+  // Get mentor's own profile
+  getMyProfile: async (): Promise<any | null> => {
+    try {
+      return await apiFetch<any>('/mentors/me');
+    } catch {
+      return null;
+    }
+  },
+
+  updateMyProfile: async (data: Record<string, any>): Promise<any> => {
+    return apiFetch('/mentors/me', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
 };
 
+// ─────────────────────────────────────────────────
+// REQUEST SERVICE
+// ─────────────────────────────────────────────────
 export const requestService = {
   createRequest: async (mentorId: string, message: string, goal: string): Promise<MentorshipRequest> => {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return {
-      id: `req_${Date.now()}`,
-      studentId: 'student_1', // mocked
-      mentorId,
-      status: 'PENDING',
-      message,
-      goal,
-      createdAt: new Date().toISOString(),
-    };
+    return apiFetch<MentorshipRequest>('/requests', {
+      method: 'POST',
+      body: JSON.stringify({ mentorId, message, goal }),
+    });
   },
-  
+
   getStudentRequests: async (): Promise<MentorshipRequest[]> => {
-    await new Promise(resolve => setTimeout(resolve, 600));
-    return [
-      {
-        id: 'req_1',
-        studentId: 'student_1',
-        mentorId: 'm3',
-        status: 'PENDING',
-        message: 'I would love to learn more about data science.',
-        goal: 'Career Guidance',
-        createdAt: new Date(Date.now() - 86400000).toISOString(),
-        mentor: MOCK_MENTORS.find(m => m.id === 'm3')
-      }
-    ];
-  }
+    return apiFetch<MentorshipRequest[]>('/requests');
+  },
+
+  // Mentor: get incoming requests
+  getMentorRequests: async (): Promise<MentorshipRequest[]> => {
+    return apiFetch<MentorshipRequest[]>('/requests');
+  },
+
+  acceptRequest: async (id: string): Promise<void> => {
+    await apiFetch(`/requests/${id}/accept`, { method: 'POST' });
+  },
+
+  declineRequest: async (id: string): Promise<void> => {
+    await apiFetch(`/requests/${id}/decline`, { method: 'POST' });
+  },
+
+  cancelRequest: async (id: string): Promise<void> => {
+    await apiFetch(`/requests/${id}/cancel`, { method: 'POST' });
+  },
 };
 
+// ─────────────────────────────────────────────────
+// MENTORSHIP SERVICE
+// ─────────────────────────────────────────────────
 export const mentorshipService = {
   getActiveMentorships: async (): Promise<Mentorship[]> => {
-    await new Promise(resolve => setTimeout(resolve, 600));
-    return [
-      {
-        id: 'ms_1',
-        studentId: 'student_1',
-        mentorId: 'm1',
-        status: 'ACTIVE',
-        startDate: new Date(Date.now() - 86400000 * 14).toISOString(),
-        mentor: MOCK_MENTORS.find(m => m.id === 'm1')
-      }
-    ];
+    return apiFetch<Mentorship[]>('/mentorships');
   },
+
+  getMentorshipById: async (id: string): Promise<Mentorship | null> => {
+    try {
+      return await apiFetch<Mentorship>(`/mentorships/${id}`);
+    } catch {
+      return null;
+    }
+  },
+
   getSessions: async (mentorshipId: string): Promise<Session[]> => {
-    await new Promise(resolve => setTimeout(resolve, 400));
-    return [
-      {
-        id: 'sess_1',
-        mentorshipId,
-        title: 'Initial Career Chat',
-        date: new Date(Date.now() - 86400000 * 5).toISOString(),
-        time: '10:00 AM',
-        durationMinutes: 45,
-        status: 'COMPLETED'
-      },
-      {
-        id: 'sess_2',
-        mentorshipId,
-        title: 'Resume Review',
-        date: new Date(Date.now() + 86400000 * 2).toISOString(),
-        time: '11:00 AM',
-        durationMinutes: 30,
-        status: 'SCHEDULED'
-      }
-    ];
+    return apiFetch<Session[]>(`/mentorships/${mentorshipId}/sessions`);
   },
+
   getGoals: async (mentorshipId: string): Promise<Goal[]> => {
-    await new Promise(resolve => setTimeout(resolve, 400));
-    return [
-      {
-        id: 'goal_1',
-        mentorshipId,
-        title: 'Build Backend API Portfolio',
-        description: 'Create 2 robust Node.js APIs to showcase in resume.',
-        progress: 50,
-        status: 'IN_PROGRESS',
-        targetDate: new Date(Date.now() + 86400000 * 30).toISOString()
-      },
-      {
-        id: 'goal_2',
-        mentorshipId,
-        title: 'System Design Interview Prep',
-        description: 'Understand scalable architectures.',
-        progress: 0,
-        status: 'NOT_STARTED',
-        targetDate: new Date(Date.now() + 86400000 * 60).toISOString()
-      }
-    ];
-  }
-}
+    return apiFetch<Goal[]>(`/mentorships/${mentorshipId}/goals`);
+  },
+
+  updateStatus: async (id: string, status: string): Promise<Mentorship> => {
+    return apiFetch<Mentorship>(`/mentorships/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+  },
+};
+
+// ─────────────────────────────────────────────────
+// STUDENT SERVICE
+// ─────────────────────────────────────────────────
+export const studentService = {
+  getMyProfile: async (): Promise<any | null> => {
+    try {
+      return await apiFetch<any>('/students/me');
+    } catch {
+      return null;
+    }
+  },
+
+  updateProfile: async (data: Record<string, any>): Promise<any> => {
+    return apiFetch('/students/me', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  updateCareer: async (data: Record<string, any>): Promise<any> => {
+    return apiFetch('/students/me/career', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+};
+
+// ─────────────────────────────────────────────────
+// USER SERVICE
+// ─────────────────────────────────────────────────
+export const userService = {
+  getMe: async (): Promise<any> => {
+    try {
+      return await apiFetch('/me');
+    } catch {
+      return null;
+    }
+  },
+
+  updateMe: async (data: Record<string, any>): Promise<any> => {
+    return apiFetch('/me', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  submitOnboarding: async (data: Record<string, any>): Promise<any> => {
+    return await apiFetch('/me/onboard', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+};
+
+// ─────────────────────────────────────────────────
+// NOTIFICATION SERVICE
+// ─────────────────────────────────────────────────
+export const notificationService = {
+  getNotifications: async (): Promise<{
+    id: string;
+    type: string;
+    title: string;
+    body: string;
+    read: boolean;
+    createdAt: string;
+  }[]> => {
+    return apiFetch('/notifications');
+  },
+
+  markRead: async (id: string): Promise<void> => {
+    await apiFetch(`/notifications/${id}/read`, { method: 'PATCH' });
+  },
+
+  markAllRead: async (): Promise<void> => {
+    await apiFetch('/notifications/read-all', { method: 'POST' });
+  },
+};
+
+// ─────────────────────────────────────────────────
+// ANALYTICS / ADMIN SERVICE
+// ─────────────────────────────────────────────────
+export const adminService = {
+  getDashboardMetrics: async (): Promise<{
+    totalStudents: number;
+    totalMentors: number;
+    activeMentorships: number;
+    acceptanceRate: number;
+    pendingVerifications: number;
+    recentRequests: MentorshipRequest[];
+  }> => {
+    return apiFetch('/analytics/dashboard');
+  },
+
+  getUsers: async (): Promise<{
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    role: string;
+    status: string;
+  }[]> => {
+    return apiFetch('/admin/users');
+  },
+
+  getPendingVerifications: async (): Promise<{
+    id: string;
+    userId: string;
+    status: string;
+    submittedAt: string;
+    user?: { firstName: string; lastName: string; email: string };
+  }[]> => {
+    return apiFetch('/verification');
+  },
+
+  approveVerification: async (id: string): Promise<void> => {
+    await apiFetch(`/verification/${id}/approve`, { method: 'PATCH' });
+  },
+
+  rejectVerification: async (id: string, reason: string): Promise<void> => {
+    await apiFetch(`/verification/${id}/reject`, {
+      method: 'PATCH',
+      body: JSON.stringify({ rejectionReason: reason }),
+    });
+  },
+
+  requestChangesVerification: async (id: string, explanation: string): Promise<void> => {
+    await apiFetch(`/verification/${id}/request-changes`, {
+      method: 'PATCH',
+      body: JSON.stringify({ explanation }),
+    });
+  },
+
+  getAdminDashboard: async (): Promise<any> => {
+    return apiFetch('/admin/dashboard');
+  },
+
+  getUserGrowth: async (days: number): Promise<any> => {
+    return apiFetch(`/admin/user-growth?days=${days}`);
+  },
+
+  getVerificationOverview: async (): Promise<any> => {
+    return apiFetch('/admin/verification-overview');
+  },
+
+  getMentorshipOverview: async (): Promise<any> => {
+    return apiFetch('/admin/mentorship-overview');
+  },
+
+  getMentorUtilization: async (): Promise<any> => {
+    return apiFetch('/admin/mentor-utilization');
+  },
+
+  getMatchingOverview: async (): Promise<any> => {
+    return apiFetch('/admin/matching-overview');
+  },
+
+  getTopSkills: async (): Promise<any> => {
+    return apiFetch('/admin/top-skills');
+  },
+
+  getTopIndustries: async (): Promise<any> => {
+    return apiFetch('/admin/top-industries');
+  },
+
+  getAuditLogs: async (limit = 50): Promise<any> => {
+    return apiFetch(`/admin/audit-logs?limit=${limit}`);
+  },
+
+  getSystemHealth: async (): Promise<any> => {
+    // Hits the existing structural health endpoint
+    return apiFetch('/health');
+  },
+};
+
+// ─────────────────────────────────────────────────
+// ALUMNI OFFICER SERVICE
+// ─────────────────────────────────────────────────
+export const alumniOfficerService = {
+  getDashboard: async (): Promise<any> => {
+    return apiFetch('/alumni-officer/dashboard');
+  },
+
+  getVerifications: async (
+    page = 1,
+    limit = 10,
+    status?: string,
+    q?: string
+  ): Promise<any> => {
+    const query = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+      ...(status ? { status } : {}),
+      ...(q ? { q } : {}),
+    });
+    return apiFetch(`/alumni-officer/verifications?${query.toString()}`);
+  },
+
+  getMentors: async (
+    page = 1,
+    limit = 10,
+    q?: string
+  ): Promise<any> => {
+    const query = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+      ...(q ? { q } : {}),
+    });
+    return apiFetch(`/alumni-officer/mentors?${query.toString()}`);
+  },
+
+  getVerificationById: async (id: string): Promise<any> => {
+    return apiFetch(`/verification/${id}`);
+  },
+
+  approveVerification: async (id: string): Promise<any> => {
+    return apiFetch(`/verification/${id}/approve`, { method: 'PATCH' });
+  },
+
+  rejectVerification: async (id: string, reason: string): Promise<any> => {
+    return apiFetch(`/verification/${id}/reject`, {
+      method: 'PATCH',
+      body: JSON.stringify({ rejectionReason: reason }),
+    });
+  },
+
+  requestChangesVerification: async (id: string, explanation: string): Promise<any> => {
+    return apiFetch(`/verification/${id}/request-changes`, {
+      method: 'PATCH',
+      body: JSON.stringify({ explanation }),
+    });
+  },
+};
+
+// ─────────────────────────────────────────────────
+// PLACEMENT OFFICER SERVICE
+// ─────────────────────────────────────────────────
+export const placementOfficerService = {
+  getDashboard: async (): Promise<any> => {
+    return apiFetch('/placement-officer/dashboard');
+  },
+
+  getStudents: async (
+    page = 1,
+    limit = 10,
+    q?: string,
+    industry?: string
+  ): Promise<any> => {
+    const query = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+      ...(q ? { q } : {}),
+      ...(industry ? { industry } : {}),
+    });
+    return apiFetch(`/placement-officer/students?${query.toString()}`);
+  },
+
+  getStudentById: async (id: string): Promise<any> => {
+    return apiFetch(`/placement-officer/students/${id}`);
+  },
+
+  getOpportunities: async (
+    page = 1,
+    limit = 10,
+    status?: string
+  ): Promise<any> => {
+    const query = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+      ...(status ? { status } : {}),
+    });
+    return apiFetch(`/placement-officer/opportunities?${query.toString()}`);
+  },
+
+  createOpportunity: async (body: any): Promise<any> => {
+    return apiFetch('/placement-officer/opportunities', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
+  getApplications: async (
+    page = 1,
+    limit = 10
+  ): Promise<any> => {
+    const query = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+    });
+    return apiFetch(`/placement-officer/applications?${query.toString()}`);
+  },
+
+  updateApplicationStatus: async (id: string, body: any): Promise<any> => {
+    return apiFetch(`/placement-officer/applications/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+  },
+};

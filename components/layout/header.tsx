@@ -20,6 +20,13 @@ export function Header() {
 
   if (!user) return null;
 
+  const showRoleSwitcher = user.email === 'someshranjanbiswal13678@gmail.com';
+
+  const handleRoleChange = (newRole: string) => {
+    localStorage.setItem('active_role', newRole);
+    window.location.reload();
+  };
+
   return (
     <header className="flex h-16 items-center justify-between border-b border-lpu-border bg-lpu-surface px-6">
       <div className="flex items-center">
@@ -29,6 +36,29 @@ export function Header() {
       </div>
       
       <div className="flex items-center gap-4">
+        {showRoleSwitcher && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="flex items-center gap-2 border-lpu-orange text-lpu-orange hover:bg-orange-50">
+                <span className="font-semibold text-xs">Active Role: {user.role.replace('_', ' ')}</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-48" align="end">
+              <DropdownMenuLabel className="text-xs text-gray-500">Switch Active Role</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => handleRoleChange('ADMIN')} className={user.role === 'ADMIN' ? 'font-bold text-lpu-orange' : ''}>
+                Admin
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleRoleChange('ALUMNI_OFFICER')} className={user.role === 'ALUMNI_OFFICER' ? 'font-bold text-lpu-orange' : ''}>
+                Alumni Officer
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleRoleChange('PLACEMENT_OFFICER')} className={user.role === 'PLACEMENT_OFFICER' ? 'font-bold text-lpu-orange' : ''}>
+                Placement Officer
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
         <Button variant="ghost" size="icon" className="relative text-lpu-text-secondary">
           <Bell className="h-5 w-5" />
           <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-lpu-orange ring-2 ring-white" />

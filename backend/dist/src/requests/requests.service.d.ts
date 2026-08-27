@@ -1,0 +1,48 @@
+import { Model, Connection, Types } from 'mongoose';
+import { MentorshipRequestDocument } from '../database/schemas/mentorship-request.schema';
+import { MentorProfileDocument } from '../database/schemas/mentor-profile.schema';
+import { StudentProfileDocument } from '../database/schemas/student-profile.schema';
+import { UserDocument } from '../database/schemas/user.schema';
+import { MentorshipDocument, MentorshipStatus } from '../database/schemas/mentorship.schema';
+import { ConversationDocument } from '../database/schemas/conversation.schema';
+import { MessageDocument } from '../database/schemas/message.schema';
+import { CreateRequestDto } from './dto/create-request.dto';
+import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
+export declare class RequestsService {
+    private readonly requestModel;
+    private readonly mentorProfileModel;
+    private readonly studentProfileModel;
+    private readonly userModel;
+    private readonly mentorshipModel;
+    private readonly conversationModel;
+    private readonly messageModel;
+    private readonly audit;
+    private readonly notifications;
+    private readonly connection;
+    constructor(requestModel: Model<MentorshipRequestDocument>, mentorProfileModel: Model<MentorProfileDocument>, studentProfileModel: Model<StudentProfileDocument>, userModel: Model<UserDocument>, mentorshipModel: Model<MentorshipDocument>, conversationModel: Model<ConversationDocument>, messageModel: Model<MessageDocument>, audit: AuditService, notifications: NotificationsService, connection: Connection);
+    create(studentUserId: string, dto: CreateRequestDto): Promise<any>;
+    findAll(userId: string, role: string): Promise<any[]>;
+    findOne(id: string, userId: string): Promise<any>;
+    accept(id: string, mentorUserId: string): Promise<{
+        id: string;
+        studentProfileId: Types.ObjectId;
+        mentorProfileId: Types.ObjectId;
+        status: MentorshipStatus;
+        startDate: Date;
+        endDate?: Date;
+        _id: Types.ObjectId;
+        $locals: Record<string, unknown>;
+        $op: "save" | "validate" | "remove" | null;
+        $where: Record<string, unknown>;
+        baseModelName?: string;
+        collection: import("mongoose").Collection;
+        db: Connection;
+        errors?: import("mongoose").Error.ValidationError;
+        isNew: boolean;
+        schema: import("mongoose").Schema;
+        __v: number;
+    }>;
+    decline(id: string, mentorUserId: string): Promise<any>;
+    cancel(id: string, studentUserId: string): Promise<any>;
+}

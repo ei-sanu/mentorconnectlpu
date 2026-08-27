@@ -13,7 +13,20 @@ import {
   UserCircle,
   GraduationCap,
   Calendar,
-  CheckSquare
+  CheckSquare,
+  User,
+  Award,
+  ShieldAlert,
+  FileText,
+  CheckCircle,
+  Sparkles,
+  Target,
+  Sliders,
+  BarChart3,
+  ClipboardList,
+  UserCheck,
+  Activity,
+  Clock
 } from 'lucide-react';
 import { useUser } from '@/lib/mock-auth';
 import { LpuLogo } from '@/components/ui/lpu-logo';
@@ -40,6 +53,7 @@ export function Sidebar() {
       { title: 'My Mentorships', href: '/app/student/mentorships', icon: GraduationCap },
       { title: 'Messages', href: '/app/student/messages', icon: MessageSquare },
       { title: 'Profile', href: '/app/student/profile', icon: UserCircle },
+      { title: 'Settings', href: '/app/student/settings', icon: Settings },
     ];
   } else if (user.role === 'MENTOR') {
     navItems = [
@@ -50,13 +64,64 @@ export function Sidebar() {
       { title: 'Capacity', href: '/app/mentor/capacity', icon: CheckSquare },
       { title: 'Messages', href: '/app/mentor/messages', icon: MessageSquare },
       { title: 'Profile', href: '/app/mentor/profile', icon: UserCircle },
+      { title: 'Settings', href: '/app/mentor/settings', icon: Settings },
     ];
   } else if (user.role === 'ADMIN') {
     navItems = [
       { title: 'Dashboard', href: '/app/admin/dashboard', icon: LayoutDashboard },
-      { title: 'Verification', href: '/app/admin/verification', icon: CheckSquare },
       { title: 'Users', href: '/app/admin/users', icon: Users },
-      { title: 'Settings', href: '/app/admin/settings', icon: Settings },
+      { title: '  • All Users', href: '/app/admin/users', icon: Users },
+      { title: '  • Students', href: '/app/admin/users?role=STUDENT', icon: GraduationCap },
+      { title: '  • Alumni', href: '/app/admin/users?role=ALUMNI', icon: User },
+      { title: '  • Mentors', href: '/app/admin/users?role=MENTOR', icon: Award },
+      { title: 'Verification', href: '/app/admin/verification', icon: ShieldAlert },
+      { title: 'Mentorship', href: '/app/admin/mentorships/requests', icon: FileText },
+      { title: '  • Requests', href: '/app/admin/mentorships/requests', icon: FileText },
+      { title: '  • Active', href: '/app/admin/mentorships/active', icon: CheckCircle },
+      { title: '  • Completed', href: '/app/admin/mentorships/completed', icon: Sparkles },
+      { title: 'AI Matching', href: '/app/admin/matching/overview', icon: Target },
+      { title: '  • Overview', href: '/app/admin/matching/overview', icon: Target },
+      { title: '  • Configuration', href: '/app/admin/matching/config', icon: Sliders },
+      { title: 'Analytics', href: '/app/admin/analytics', icon: BarChart3 },
+      { title: 'Notifications', href: '/app/admin/notifications', icon: Bell },
+      { title: 'Audit Logs', href: '/app/admin/audit-logs', icon: ClipboardList },
+      { title: 'System Settings', href: '/app/admin/settings', icon: Settings },
+    ];
+  } else if (user.role === 'ALUMNI_OFFICER') {
+    navItems = [
+      { title: 'Dashboard', href: '/app/alumni-officer/dashboard', icon: LayoutDashboard },
+      { title: 'Alumni', href: '/app/alumni-officer/directory', icon: Users },
+      { title: '  • Directory', href: '/app/alumni-officer/directory', icon: Users },
+      { title: '  • Verification', href: '/app/alumni-officer/verification', icon: ShieldAlert },
+      { title: '  • Analytics', href: '/app/alumni-officer/analytics', icon: BarChart3 },
+      { title: 'Mentors', href: '/app/alumni-officer/mentors', icon: UserCheck },
+      { title: '  • Applications', href: '/app/alumni-officer/mentor-applications', icon: FileText },
+      { title: '  • Active Mentors', href: '/app/alumni-officer/mentors', icon: UserCheck },
+      { title: '  • Performance', href: '/app/alumni-officer/mentor-performance', icon: Activity },
+      { title: 'Mentorship', href: '/app/alumni-officer/mentorships/active', icon: CheckCircle },
+      { title: '  • Active', href: '/app/alumni-officer/mentorships/active', icon: CheckCircle },
+      { title: '  • Requests', href: '/app/alumni-officer/mentorships/requests', icon: Clock },
+      { title: '  • Feedback', href: '/app/alumni-officer/mentorships/feedback', icon: MessageSquare },
+      { title: 'Notifications', href: '/app/alumni-officer/notifications', icon: Bell },
+    ];
+  } else if (user.role === 'PLACEMENT_OFFICER') {
+    navItems = [
+      { title: 'Dashboard', href: '/app/placement-officer/dashboard', icon: LayoutDashboard },
+      { title: 'Students', href: '/app/placement-officer/directory', icon: Users },
+      { title: '  • Directory', href: '/app/placement-officer/directory', icon: Users },
+      { title: '  • Career Readiness', href: '/app/placement-officer/readiness', icon: CheckSquare },
+      { title: '  • Skill Gaps', href: '/app/placement-officer/skill-gaps', icon: ShieldAlert },
+      { title: 'Opportunities', href: '/app/placement-officer/opportunities/active', icon: Briefcase },
+      { title: '  • Active', href: '/app/placement-officer/opportunities/active', icon: Briefcase },
+      { title: '  • Upcoming', href: '/app/placement-officer/opportunities/upcoming', icon: Clock },
+      { title: '  • Applications', href: '/app/placement-officer/opportunities/applications', icon: FileText },
+      { title: 'Placements', href: '/app/placement-officer/placements/applications', icon: FileText },
+      { title: '  • Applications', href: '/app/placement-officer/placements/applications', icon: FileText },
+      { title: '  • Interviews', href: '/app/placement-officer/placements/interviews', icon: Calendar },
+      { title: '  • Outcomes', href: '/app/placement-officer/placements/outcomes', icon: CheckCircle },
+      { title: 'AI Insights', href: '/app/placement-officer/ai-insights', icon: Sparkles },
+      { title: 'Analytics', href: '/app/placement-officer/analytics', icon: BarChart3 },
+      { title: 'Notifications', href: '/app/placement-officer/notifications', icon: Bell },
     ];
   }
 

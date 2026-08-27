@@ -3,21 +3,15 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { useAuth, useUser } from '@/lib/mock-auth';
+import { useAuth } from '@/lib/mock-auth';
 import { LpuLogo } from '@/components/ui/lpu-logo';
 
 export function LandingHeader() {
-  const { isSignedIn } = useAuth();
-  const { user } = useUser();
+  const { isSignedIn, user, isLoaded, signOut } = useAuth();
   const router = useRouter();
 
-  const handleDemoScroll = () => {
-    const el = document.getElementById('demo-login');
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
-    } else {
-      router.push('/#demo-login');
-    }
+  const handleAuthRedirect = () => {
+    router.push('/login');
   };
 
   return (
@@ -29,15 +23,25 @@ export function LandingHeader() {
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-lpu-text-secondary">
           <Link href="/#how-it-works" className="hover:text-lpu-orange transition-colors">How it works</Link>
           <Link href="/#benefits" className="hover:text-lpu-orange transition-colors">Benefits</Link>
+          {isLoaded && user?.role === 'ADMIN' && (
+            <Link href="/app/admin/dashboard" className="text-red-600 font-semibold hover:text-red-700 transition-colors">Admin Panel</Link>
+          )}
         </nav>
         <div className="flex items-center gap-4">
-          {isSignedIn ? (
-            <Button onClick={() => router.push(`/app/${user?.role.toLowerCase()}/dashboard`)} className="rounded-xl px-6">
-              Go to Dashboard
-            </Button>
+          {!isLoaded ? (
+            <div className="h-10 w-28 animate-pulse bg-gray-100 rounded-xl" />
+          ) : isSignedIn ? (
+            <div className="flex items-center gap-2">
+              <Button onClick={() => router.push(`/app/${user?.role.toLowerCase()}/dashboard`)} className="rounded-xl px-6 bg-lpu-orange text-white hover:bg-lpu-orange/95 font-semibold">
+                Go to Dashboard
+              </Button>
+              <Button variant="outline" onClick={() => { signOut(); router.push('/'); }} className="rounded-xl px-4 border-lpu-border hover:bg-red-50 hover:text-red-600 transition-colors font-semibold">
+                Logout
+              </Button>
+            </div>
           ) : (
-            <Button variant="outline" onClick={handleDemoScroll} className="rounded-xl px-6 border-lpu-border hover:bg-lpu-bg">
-              Demo Login
+            <Button variant="outline" onClick={handleAuthRedirect} className="rounded-xl px-6 border-lpu-border hover:bg-lpu-bg font-semibold">
+              Login
             </Button>
           )}
         </div>

@@ -1,96 +1,91 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React from 'react';
+import { ClerkProvider, useAuth as useClerkAuth, useUser as useClerkUser } from '@clerk/nextjs';
 import { User, Role } from '@/types';
 
-// Mock users for demonstration
-export const MOCK_USERS: User[] = [
-  {
-    id: 'student_1',
-    firstName: 'Aarav',
-    lastName: 'Sharma',
-    email: 'aarav.sharma@lpu.in',
-    imageUrl: 'https://picsum.photos/seed/aarav/200/200',
-    role: 'STUDENT',
-  },
-  {
-    id: 'mentor_1',
-    firstName: 'Priya',
-    lastName: 'Patel',
-    email: 'priya.patel@alumni.lpu.in',
-    imageUrl: 'https://picsum.photos/seed/priya/200/200',
-    role: 'MENTOR',
-  },
-  {
-    id: 'admin_1',
-    firstName: 'Rajesh',
-    lastName: 'Kumar',
-    email: 'rajesh.kumar@lpu.co.in',
-    imageUrl: 'https://picsum.photos/seed/rajesh/200/200',
-    role: 'ADMIN',
-  },
-];
-
-interface MockAuthContextType {
-  isLoaded: boolean;
-  isSignedIn: boolean;
-  user: User | null;
-  signIn: (userId: string) => void;
-  signOut: () => void;
-}
-
-const MockAuthContext = createContext<MockAuthContextType>({
-  isLoaded: false,
-  isSignedIn: false,
-  user: null,
-  signIn: () => {},
-  signOut: () => {},
-});
-
 export const MockAuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-
-  useEffect(() => {
-    // Simulate initial load and check local storage
-    const storedUserId = typeof window !== 'undefined' ? localStorage.getItem('mock_auth_user') : null;
-    if (storedUserId) {
-      const foundUser = MOCK_USERS.find(u => u.id === storedUserId);
-      if (foundUser) {
-        setTimeout(() => setUser(foundUser), 0);
-      }
-    }
-    setTimeout(() => setIsLoaded(true), 0);
-  }, []);
-
-  const signIn = (userId: string) => {
-    const foundUser = MOCK_USERS.find(u => u.id === userId);
-    if (foundUser) {
-      setUser(foundUser);
-      localStorage.setItem('mock_auth_user', userId);
-    }
-  };
-
-  const signOut = () => {
-    setUser(null);
-    localStorage.removeItem('mock_auth_user');
-  };
-
   return (
-    <MockAuthContext.Provider value={{ isLoaded, isSignedIn: !!user, user, signIn, signOut }}>
+    <ClerkProvider publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}>
       {children}
-    </MockAuthContext.Provider>
+    </ClerkProvider>
   );
 };
 
 export const useUser = () => {
-  const context = useContext(MockAuthContext);
-  return { isLoaded: context.isLoaded, isSignedIn: context.isSignedIn, user: context.user };
+  const { isLoaded: clerkLoaded, isSignedIn: clerkSignedIn, user: clerkUser } = useClerkUser();
+
+  // If mock login bypass is active
+  if (typeof window !== 'undefined' && localStorage.getItem('mock_user_token')) {
+    const mockEmail = localStorage.getItem('mock_user_email') || 'someshranjanbiswal13678@gmail.com';
+    const activeRole = (localStorage.getItem('active_role') as Role) || 'ADMIN';
+    const user: User = {
+      id: 'mock_user_someshranjanbiswal13678_gmail_com',
+      firstName: 'Somesh Ranjan',
+      lastName: 'Biswal',
+      email: mockEmail,
+      imageUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150',
+      role: activeRole,
+    };
+    return {
+      isLoaded: true,
+      isSignedIn: true,
+      user,
+      explicitRole: activeRole,
+    };
+  }
+
+  let user: User | null = null;
+  let explicitRole: Role | null = null;
+  if (clerkUser) {
+    const storedRole = typeof window !== 'undefined' ? localStorage.getItem(`clerk_role_${clerkUser.id}`) : null;
+    const metaRole = clerkUser.unsafeMetadata?.role as Role | undefined;
+    explicitRole = (storedRole as Role) || metaRole || null;
+    user = {
+      id: clerkUser.id,
+      firstName: clerkUser.firstName || '',
+      lastName: clerkUser.lastName || '',
+      email: clerkUser.primaryEmailAddress?.emailAddress || '',
+      imageUrl: clerkUser.imageUrl,
+      role: explicitRole || 'STUDENT',
+    };
+  }
+
+  return {
+    isLoaded: clerkLoaded,
+    isSignedIn: !!clerkSignedIn,
+    user,
+    explicitRole,
+  };
 };
 
 export const useAuth = () => {
-  const context = useContext(MockAuthContext);
-  return { isLoaded: context.isLoaded, isSignedIn: context.isSignedIn, signOut: context.signOut, signIn: context.signIn };
+  const { isLoaded: clerkLoaded, isSignedIn: clerkSignedIn, signOut: clerkSignOut } = useClerkAuth();
+  const { user, explicitRole } = useUser();
+
+  const isMock = typeof window !== 'undefined' && !!localStorage.getItem('mock_user_token');
+
+  const handleSignOut = async () => {
+    if (isMock) {
+      localStorage.removeItem('mock_user_token');
+      localStorage.removeItem('mock_user_email');
+      localStorage.removeItem('active_role');
+      window.location.href = '/login';
+    } else {
+      await clerkSignOut();
+    }
+  };
+
+  return {
+    isLoaded: isMock ? true : clerkLoaded,
+    isSignedIn: isMock ? true : !!clerkSignedIn,
+    user,
+    explicitRole,
+    signOut: handleSignOut,
+    signIn: (email: string) => true,
+    signUp: (email: string, firstName: string, lastName: string, role: Role) => {},
+    users: [],
+  };
 };
 
 export const SignedIn = ({ children }: { children: React.ReactNode }) => {

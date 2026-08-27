@@ -1,0 +1,35 @@
+import { Model } from 'mongoose';
+import { UserDocument } from '../database/schemas/user.schema';
+import { MentorProfileDocument } from '../database/schemas/mentor-profile.schema';
+import { StudentProfileDocument } from '../database/schemas/student-profile.schema';
+import { AlumniVerificationDocument } from '../database/schemas/alumni-verification.schema';
+import { SystemConfigDocument } from '../database/schemas/system-config.schema';
+import { AuditService } from '../audit/audit.service';
+import { AnalyticsService } from '../analytics/analytics.service';
+import { MatchingWeights } from '../matching/matching.service';
+export declare class AdminController {
+    private readonly userModel;
+    private readonly mentorProfileModel;
+    private readonly studentProfileModel;
+    private readonly verificationModel;
+    private readonly configModel;
+    private readonly audit;
+    private readonly analytics;
+    constructor(userModel: Model<UserDocument>, mentorProfileModel: Model<MentorProfileDocument>, studentProfileModel: Model<StudentProfileDocument>, verificationModel: Model<AlumniVerificationDocument>, configModel: Model<SystemConfigDocument>, audit: AuditService, analytics: AnalyticsService);
+    getDashboard(): Promise<any>;
+    getUsers(): Promise<any>;
+    getMentors(): Promise<any>;
+    getStudents(): Promise<any>;
+    getVerifications(): Promise<any>;
+    getAnalytics(): Promise<any>;
+    getMatchingConfig(): Promise<any>;
+    updateMatchingConfig(admin: any, dto: MatchingWeights): Promise<any>;
+    getUserGrowth(days?: string): Promise<any>;
+    getVerificationOverview(): Promise<any>;
+    getMentorshipOverview(): Promise<any>;
+    getMentorUtilization(): Promise<any>;
+    getMatchingOverview(): Promise<any>;
+    getTopSkills(): Promise<any>;
+    getTopIndustries(): Promise<any>;
+    getAuditLogs(limit?: string): Promise<any>;
+}

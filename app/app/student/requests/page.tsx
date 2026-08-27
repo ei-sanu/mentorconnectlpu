@@ -88,7 +88,7 @@ export default function StudentRequests() {
         ) : (
           <Card className="flex flex-col items-center justify-center py-12 text-center">
             <h3 className="text-lg font-medium">No pending requests</h3>
-            <p className="text-lpu-text-secondary mt-1">You haven't sent any mentorship requests yet.</p>
+            <p className="text-lpu-text-secondary mt-1">You haven&apos;t sent any mentorship requests yet.</p>
           </Card>
         )}
       </div>
